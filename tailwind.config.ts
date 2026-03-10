@@ -14,7 +14,7 @@ export default {
       fontFamily: {
         logo: ["'Barlow Condensed'", "sans-serif"],
         display: ["'Barlow Condensed'", "sans-serif"],
-        ui: ["'Barlow'", "sans-serif"],
+        ui: ["'Inter'", "sans-serif"],
         mono: ["'JetBrains Mono'", "monospace"],
       },
       colors: {
@@ -64,12 +64,14 @@ export default {
         "accordion-up": { from: { height: "var(--radix-accordion-content-height)" }, to: { height: "0" } },
         "slide-in-right": { from: { transform: "translateX(100%)" }, to: { transform: "translateX(0)" } },
         "slide-out-right": { from: { transform: "translateX(0)" }, to: { transform: "translateX(100%)" } },
+        "fade-in": { from: { opacity: "0" }, to: { opacity: "1" } },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "slide-in-right": "slide-in-right 0.3s ease-out",
         "slide-out-right": "slide-out-right 0.3s ease-out",
+        "fade-in": "fade-in 0.2s ease-out",
       },
     },
   },
