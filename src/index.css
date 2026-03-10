@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,600;0,700;1,700;1,800&family=Barlow:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,600;0,700;1,700;1,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -78,6 +78,7 @@
 }
 
 @layer utilities {
+  /* Barlow Condensed — ONLY for logo, page titles, KPI numbers, badges */
   .font-logo {
     font-family: 'Barlow Condensed', sans-serif;
     font-weight: 700;
@@ -91,12 +92,14 @@
     font-family: 'Barlow Condensed', sans-serif;
     font-weight: 600;
   }
+  /* Inter — all UI text, labels, body, table cells */
   .font-ui {
-    font-family: 'Barlow', sans-serif;
+    font-family: 'Inter', sans-serif;
   }
   .font-mono-data {
     font-family: 'JetBrains Mono', monospace;
   }
+
   .card-surface {
     background: hsl(var(--bg-surface));
     border: 1px solid hsl(var(--border-default));
@@ -112,8 +115,8 @@
     border: 1px solid hsl(0 0% 100% / 0.1);
     border-radius: 0.5rem;
     color: hsl(var(--text-primary));
-    font-family: 'Barlow', sans-serif;
-    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
     transition: border-color 0.2s, box-shadow 0.2s;
   }
   .input-field:focus {
@@ -124,20 +127,21 @@
   .badge-pill {
     background: hsl(var(--bg-elevated));
     border-radius: 9999px;
-    padding: 2px 10px;
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 600;
+    padding: 3px 10px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
     font-size: 11px;
     text-transform: uppercase;
+    letter-spacing: 0.03em;
     color: hsl(var(--text-secondary));
   }
   .table-header {
-    font-family: 'Barlow', sans-serif;
+    font-family: 'Inter', sans-serif;
     font-weight: 600;
     font-size: 11px;
     text-transform: uppercase;
     color: hsl(var(--text-secondary));
-    letter-spacing: 0.08em;
+    letter-spacing: 0.06em;
   }
 
   /* Skeleton shimmer */
