@@ -1,60 +1,111 @@
-import { useState, useMemo, useEffect } from "react";
-import { mockUsers, USER_TYPES, DISCIPLINES } from "@/data/mockData";
-import type { User } from "@/data/mockData";
-import UserDetailDrawer from "@/components/drawers/UserDetailDrawer";
-import { BlockModal, DeleteModal } from "@/components/ui/ConfirmModal";
+import { useState, useEffect, useCallback } from "react";
+import { useProfiles } from "@/hooks/queries/useProfiles";
+import { useUpdateProfileStatus } from "@/hooks/mutations/useProfileMutations";
+import { Search, Eye, Pencil, Ban, Trash2, ChevronLeft, ChevronRight, Loader2, AlertTriangle, CheckCircle } from "lucide-react";
 import TableSkeleton from "@/components/ui/TableSkeleton";
 import EmptyState from "@/components/ui/EmptyState";
-import { Search, Download, Eye, Pencil, Ban, Trash2 } from "lucide-react";
-import { toast } from "sonner";
+import UserDetailDrawer from "@/components/drawers/UserDetailDrawer";
+import type { Profile } from "@/types/database";
 
-const UsersPage = () => {
-  const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [disciplineFilter, setDisciplineFilter] = useState('');
-  const [page, setPage] = useState(1);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [drawerMode, setDrawerMode] = useState<'view' | 'edit'>('view');
-  const [blockTarget, setBlockTarget] = useState<User | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const perPage = 25;
+const COUNTRIES = [
+  { value: 'france', label: 'France', code: 'FR' },
+  { value: 'belgique', label: 'Belgique', code: 'BE' },
+  { value: 'suisse', label: 'Suisse', code: 'CH' },
+]
+
+const getCountryFlagUrl = (country: string | null) => {
+  const c = COUNTRIES.find(x => x.value === country)
+  return c ? `https://flagsapi.com/${c.code}/flat/64.png` : null
+}
+
+const ROLES = [
+  'Pilote', 'Copilote', 'Coach', 'Ingenieur', 'Technicien', 'Team',
+  'Enterprise', 'Médias Photo', 'Médias Vidéo', 'Médias Presse',
+  'Personnel Organisation', 'Manager', 'Personnel Médical'
+]
+
+const STATUS_OPTIONS = [
+  { value: '', label: 'Tous les statuts' },
+  { value: 'active', label: 'Actifs' },
+  { value: 'disabled', label: 'Inactifs' },
+]
+
+const useDebounce = (value: string, delay: number) => {
+  const [debouncedValue, setDebouncedValue] = useState(value)
 
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 600);
-    return () => clearTimeout(t);
-  }, []);
+    const handler = setTimeout(() => setDebouncedValue(value), delay)
+    return () => clearTimeout(handler)
+  }, [value, delay])
 
-  const filtered = useMemo(() => {
-    return mockUsers.filter(u => {
-      if (search.length >= 3) {
-        const s = search.toLowerCase();
-        if (!`${u.first_name} ${u.last_name} ${u.city}`.toLowerCase().includes(s)) return false;
+  return debouncedValue
+}
+
+const UsersPage = () => {
+  const [page, setPage] = useState(1)
+  const [searchInput, setSearchInput] = useState('')
+  const [roleFilter, setRoleFilter] = useState('')
+  const [countryFilter, setCountryFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null)
+  const [drawerMode, setDrawerMode] = useState<'view' | 'edit'>('view')
+  const [banTarget, setBanTarget] = useState<Profile | null>(null)
+  const perPage = 10
+
+  const debouncedSearch = useDebounce(searchInput, 300)
+
+  const { data, isLoading, isFetching } = useProfiles({
+    page,
+    perPage,
+    search: debouncedSearch.length >= 2 ? debouncedSearch : undefined,
+    role: roleFilter || undefined,
+    country: countryFilter || undefined,
+    status: statusFilter || undefined,
+  })
+
+  const updateStatus = useUpdateProfileStatus()
+
+  const profiles = data?.data ?? []
+  const totalPages = data?.totalPages ?? 0
+  const total = data?.total ?? 0
+
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedSearch, roleFilter, countryFilter, statusFilter])
+
+  const handleStatusToggle = (profile: Profile) => {
+    const newStatus: 'active' | 'disabled' = profile.status === 'active' ? 'disabled' : 'active'
+    updateStatus.mutate({ userId: profile.user_id, status: newStatus })
+  }
+
+  const handleBanConfirm = () => {
+    if (!banTarget) return
+    const newStatus: 'active' | 'disabled' = banTarget.status === 'disabled' ? 'active' : 'disabled'
+    updateStatus.mutate(
+      { userId: banTarget.user_id, status: newStatus },
+      { onSuccess: () => setBanTarget(null) }
+    )
+  }
+
+  const getPageNumbers = useCallback(() => {
+    const pages: (number | 'ellipsis')[] = []
+    const total = totalPages
+    const current = page
+
+    if (total <= 7) {
+      for (let i = 1; i <= total; i++) pages.push(i)
+    } else {
+      pages.push(1)
+      if (current > 3) pages.push('ellipsis')
+      for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) {
+        pages.push(i)
       }
-      if (typeFilter && u.user_type !== typeFilter) return false;
-      if (statusFilter && u.status !== statusFilter) return false;
-      if (disciplineFilter && !u.disciplines.includes(disciplineFilter)) return false;
-      return true;
-    });
-  }, [search, typeFilter, statusFilter, disciplineFilter]);
+      if (current < total - 2) pages.push('ellipsis')
+      pages.push(total)
+    }
 
-  const totalPages = Math.ceil(filtered.length / perPage);
-  const paged = filtered.slice((page - 1) * perPage, page * perPage);
-
-  const handleExportCSV = () => {
-    const headers = ['Prénom', 'Nom', 'Type', 'Email', 'Pays', 'Ville', 'XP', 'Statut', 'Inscrit le'];
-    const rows = filtered.map(u => [u.first_name, u.last_name, u.user_type, u.email, u.country, u.city, u.xp_score, u.status, u.created_at]);
-    const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'racynkx_users.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success('Export CSV téléchargé.');
-  };
+    return pages
+  }, [totalPages, page])
 
   return (
     <div className="p-6 space-y-4 max-w-[1400px]">
@@ -64,30 +115,36 @@ const UsersPage = () => {
       <div className="flex flex-wrap gap-3 items-center sticky top-0 z-10 bg-background py-3 border-b border-border -mx-6 px-6">
         <div className="relative flex-1 min-w-[220px] max-w-[300px]">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-rx-text-muted" />
-          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
-            placeholder="Rechercher par nom, ville…"
-            className="input-field w-full pl-9 pr-4 py-2.5" />
+          <input
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
+            placeholder="Rechercher par nom, pays..."
+            className="input-field w-full pl-9 pr-4 py-2.5"
+          />
         </div>
-        <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1); }}
-          className="input-field px-3 py-2.5 min-w-[150px]">
-          <option value="">Type</option>
-          {USER_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+        <select
+          value={statusFilter}
+          onChange={e => setStatusFilter(e.target.value)}
+          className="input-field px-3 py-2.5 min-w-[140px]"
+        >
+          {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
-        <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
-          className="input-field px-3 py-2.5">
-          <option value="">Statut</option>
-          <option value="active">Actif</option>
-          <option value="blocked">Bloqué</option>
+        <select
+          value={roleFilter}
+          onChange={e => setRoleFilter(e.target.value)}
+          className="input-field px-3 py-2.5 min-w-[150px]"
+        >
+          <option value="">Tous les rôles</option>
+          {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
         </select>
-        <select value={disciplineFilter} onChange={e => { setDisciplineFilter(e.target.value); setPage(1); }}
-          className="input-field px-3 py-2.5 min-w-[130px]">
-          <option value="">Discipline</option>
-          {DISCIPLINES.map(d => <option key={d} value={d}>{d}</option>)}
+        <select
+          value={countryFilter}
+          onChange={e => setCountryFilter(e.target.value)}
+          className="input-field px-3 py-2.5"
+        >
+          <option value="">Tous les pays</option>
+          {COUNTRIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
         </select>
-        <button onClick={handleExportCSV}
-          className="ml-auto flex items-center gap-2 px-4 py-2.5 border border-[hsl(0_0%_100%/0.12)] rounded-lg text-rx-text-secondary hover:text-foreground hover:border-[hsl(0_0%_100%/0.2)] font-ui text-[13px] transition-colors">
-          <Download size={14} /> Export CSV
-        </button>
       </div>
 
       {/* Table */}
@@ -95,52 +152,121 @@ const UsersPage = () => {
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-[hsl(0_0%_100%/0.1)]">
-                {['', 'Nom complet', 'Type', 'Discipline(s)', 'Pays', 'Inscrit le', 'XP', 'Statut', 'Actions'].map(h => (
-                  <th key={h} className="table-header text-left px-4 py-3">{h}</th>
-                ))}
+              <tr className="border-b border-border">
+                <th className="table-header text-left px-4 py-3">#</th>
+                <th className="table-header text-left px-4 py-3">Avatar</th>
+                <th className="table-header text-left px-4 py-3">Nom</th>
+                <th className="table-header text-left px-4 py-3">Rôle</th>
+                <th className="table-header text-left px-4 py-3">Disciplines</th>
+                <th className="table-header text-left px-4 py-3">Pays</th>
+                <th className="table-header text-left px-4 py-3">Inscrit le</th>
+                <th className="table-header text-left px-4 py-3">XP</th>
+                <th className="table-header text-left px-4 py-3">Statut</th>
+                <th className="table-header text-left px-4 py-3">Actions</th>
               </tr>
             </thead>
-            {loading ? <TableSkeleton cols={9} rows={8} /> : (
+            {isLoading ? (
+              <TableSkeleton cols={10} rows={10} />
+            ) : (
               <tbody>
-                {paged.length === 0 ? (
-                  <tr><td colSpan={9}><EmptyState icon="👤" title="Aucun utilisateur trouvé" subtitle="Essayez de modifier vos filtres." /></td></tr>
-                ) : paged.map(u => (
-                  <tr key={u.id} className="border-b border-[hsl(0_0%_100%/0.03)] hover:bg-rx-elevated transition-colors">
+                {profiles.length === 0 ? (
+                  <tr>
+                    <td colSpan={10}>
+                      <EmptyState icon="👤" title="Aucun utilisateur trouvé" subtitle="Essayez de modifier vos filtres." />
+                    </td>
+                  </tr>
+                ) : profiles.map((profile, index) => (
+                  <tr key={profile.user_id} className="border-b border-[hsl(0_0%_100%/0.03)] hover:bg-rx-elevated transition-colors">
+                    <td className="px-4 py-3 font-mono-data text-xs text-rx-text-muted">
+                      {(page - 1) * perPage + index + 1}
+                    </td>
                     <td className="px-4 py-3">
-                      <div className="w-8 h-8 rounded-full bg-rx-elevated flex items-center justify-center text-[11px] font-ui font-medium text-rx-text-secondary shrink-0">
-                        {u.first_name[0]}{u.last_name[0]}
+                      {profile.profile_photo_url ? (
+                        <img
+                          src={profile.profile_photo_url}
+                          alt=""
+                          className="w-8 h-8 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-rx-elevated flex items-center justify-center text-[11px] font-ui font-medium text-rx-text-secondary">
+                          {(profile.first_name?.[0] || '?')}{(profile.last_name?.[0] || '')}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="font-ui font-semibold text-[13px] text-foreground">
+                        {profile.first_name && profile.last_name
+                          ? `${profile.first_name} ${profile.last_name}`
+                          : profile.first_name || profile.last_name || 'Sans nom'}
+                      </div>
+                      <div className="font-mono-data text-[11px] text-rx-text-muted truncate max-w-[150px]">
+                        {profile.user_id.slice(0, 8)}...
                       </div>
                     </td>
-                    <td className="px-4 py-3 font-ui font-semibold text-[13px] text-foreground whitespace-nowrap">
-                      {u.first_name} {u.last_name}
+                    <td className="px-4 py-3">
+                      <span className="badge-pill">{profile.role || '—'}</span>
                     </td>
-                    <td className="px-4 py-3"><span className="badge-pill">{u.user_type}</span></td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1 flex-wrap">
-                        {u.disciplines.slice(0, 2).map(d => <span key={d} className="badge-pill text-[10px]">{d}</span>)}
-                        {u.disciplines.length > 2 && <span className="badge-pill text-[10px]">+{u.disciplines.length - 2}</span>}
+                        {profile.disciplines?.slice(0, 2).map(d => (
+                          <span key={d} className="badge-pill text-[10px]">{d}</span>
+                        ))}
+                        {profile.disciplines && profile.disciplines.length > 2 && (
+                          <span className="badge-pill text-[10px]">+{profile.disciplines.length - 2}</span>
+                        )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 font-ui text-[13px] text-rx-text-secondary whitespace-nowrap">{u.country_flag} {u.country}</td>
-                    <td className="px-4 py-3 font-mono-data text-xs text-rx-text-secondary">{u.created_at}</td>
-                    <td className="px-4 py-3 font-mono-data text-[13px] text-rx-gold-light">{u.xp_score.toLocaleString()}</td>
                     <td className="px-4 py-3">
-                      <span className={`flex items-center gap-1.5 text-xs font-ui ${u.status === 'active' ? 'text-rx-success' : 'text-rx-danger'}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${u.status === 'active' ? 'bg-rx-success' : 'bg-rx-danger'}`} />
-                        {u.status === 'active' ? 'Actif' : 'Bloqué'}
+                      {profile.country ? (
+                        <div className="flex items-center gap-2">
+                          <img
+                            src={getCountryFlagUrl(profile.country)}
+                            alt=""
+                            className="w-5 h-4 rounded-sm object-cover"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                          />
+                          <span className="font-ui text-[13px] text-rx-text-secondary capitalize">{profile.country}</span>
+                        </div>
+                      ) : (
+                        <span className="font-ui text-[13px] text-rx-text-muted">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 font-mono-data text-xs text-rx-text-secondary">
+                      {profile.created_at ? new Date(profile.created_at).toLocaleDateString('fr-FR') : '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="font-mono-data text-[13px] text-rx-gold-light">
+                        {profile.experience_xp?.toLocaleString() ?? 0}
                       </span>
                     </td>
                     <td className="px-4 py-3">
+                      <button
+                        onClick={() => handleStatusToggle(profile)}
+                        className={`flex items-center gap-1.5 text-xs font-ui cursor-pointer hover:opacity-80 transition-opacity ${profile.status === 'active' ? 'text-rx-success' : 'text-rx-danger'}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${profile.status === 'active' ? 'bg-rx-success' : 'bg-rx-danger'}`} />
+                        {profile.status === 'active' ? 'Actif' : 'Inactif'}
+                      </button>
+                    </td>
+                    <td className="px-4 py-3">
                       <div className="flex gap-0.5">
-                        <button onClick={() => { setSelectedUser(u); setDrawerMode('view'); }}
-                          className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-rx-elevated text-rx-text-secondary hover:text-foreground transition-colors"><Eye size={14} /></button>
-                        <button onClick={() => { setSelectedUser(u); setDrawerMode('edit'); }}
-                          className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-rx-elevated text-rx-text-secondary hover:text-foreground transition-colors"><Pencil size={14} /></button>
-                        <button onClick={() => setBlockTarget(u)}
-                          className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-rx-elevated text-rx-text-secondary hover:text-foreground transition-colors"><Ban size={14} /></button>
-                        <button onClick={() => setDeleteTarget(u)}
-                          className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-[hsl(0_72%_57%/0.08)] text-rx-danger transition-colors"><Trash2 size={14} /></button>
+                        <button
+                          onClick={() => { setSelectedProfile(profile); setDrawerMode('view'); }}
+                          className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-rx-elevated text-rx-text-secondary hover:text-foreground transition-colors">
+                          <Eye size={14} />
+                        </button>
+                        <button
+                          onClick={() => { setSelectedProfile(profile); setDrawerMode('edit'); }}
+                          className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-rx-elevated text-rx-text-secondary hover:text-foreground transition-colors">
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          onClick={() => setBanTarget(profile)}
+                          className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-[hsl(0_47%_11%)] text-rx-text-secondary hover:text-rx-danger transition-colors">
+                          <Ban size={14} />
+                        </button>
+                        <button className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-[hsl(0_72%_57%/0.08)] text-rx-danger transition-colors">
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -153,44 +279,99 @@ const UsersPage = () => {
 
       {/* Pagination */}
       <div className="flex items-center justify-between text-[13px] font-ui text-rx-text-secondary">
-        <span>Page {page} sur {totalPages} · {filtered.length} résultats</span>
-        <div className="flex gap-2">
-          <button disabled={page <= 1} onClick={() => setPage(page - 1)}
-            className="px-3 py-1.5 border border-[hsl(0_0%_100%/0.12)] rounded-md text-[13px] disabled:opacity-30 hover:text-foreground hover:border-[hsl(0_0%_100%/0.2)] transition-colors">
-            Précédent
+        <span>
+          Page {page} sur {totalPages || 1} · {total} résultat{total !== 1 ? 's' : ''}
+        </span>
+        <div className="flex items-center gap-1">
+          {isFetching && !isLoading && <Loader2 size={14} className="animate-spin text-rx-text-muted mr-2" />}
+          <button
+            disabled={page <= 1 || isLoading}
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            className="w-8 h-8 flex items-center justify-center border border-border rounded-md hover:text-foreground hover:bg-rx-elevated transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+            <ChevronLeft size={14} />
           </button>
-          <button disabled={page >= totalPages} onClick={() => setPage(page + 1)}
-            className="px-3 py-1.5 border border-[hsl(0_0%_100%/0.12)] rounded-md text-[13px] disabled:opacity-30 hover:text-foreground hover:border-[hsl(0_0%_100%/0.2)] transition-colors">
-            Suivant
+          {getPageNumbers().map((p, i) =>
+            p === 'ellipsis' ? (
+              <span key={`ellipsis-${i}`} className="w-8 h-8 flex items-center justify-center text-rx-text-muted">...</span>
+            ) : (
+              <button
+                key={p}
+                onClick={() => setPage(p)}
+                disabled={isLoading}
+                className={`w-8 h-8 flex items-center justify-center border rounded-md font-medium text-[13px] transition-colors disabled:cursor-not-allowed ${page === p
+                    ? 'border-rx-blue bg-rx-blue/10 text-rx-blue'
+                    : 'border-border text-rx-text-secondary hover:text-foreground hover:bg-rx-elevated'
+                  }`}>
+                {p}
+              </button>
+            )
+          )}
+          <button
+            disabled={page >= totalPages || isLoading}
+            onClick={() => setPage(p => p + 1)}
+            className="w-8 h-8 flex items-center justify-center border border-border rounded-md hover:text-foreground hover:bg-rx-elevated transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+            <ChevronRight size={14} />
           </button>
         </div>
       </div>
 
-      {/* Drawers & Modals */}
-      {selectedUser && (
-        <UserDetailDrawer user={selectedUser} mode={drawerMode} onClose={() => setSelectedUser(null)}
-          onSwitchMode={m => setDrawerMode(m)}
-          onBlock={u => { setSelectedUser(null); setBlockTarget(u); }}
-          onDelete={u => { setSelectedUser(null); setDeleteTarget(u); }}
+      {/* Drawer */}
+      {selectedProfile && (
+        <UserDetailDrawer
+          profile={selectedProfile}
+          mode={drawerMode}
+          onClose={() => setSelectedProfile(null)}
+          onSwitchMode={(m) => setDrawerMode(m)}
+          onStatusChange={(updated) => setSelectedProfile(updated)}
+          onProfileUpdate={(updated) => setSelectedProfile(updated)}
         />
       )}
-      {blockTarget && (
-        <BlockModal
-          userName={`${blockTarget.first_name} ${blockTarget.last_name}`}
-          isBlocked={blockTarget.status === 'blocked'}
-          onConfirm={() => { toast.success(`Utilisateur ${blockTarget.status === 'blocked' ? 'débloqué' : 'bloqué'}.`); setBlockTarget(null); }}
-          onCancel={() => setBlockTarget(null)}
-        />
-      )}
-      {deleteTarget && (
-        <DeleteModal
-          userName={`${deleteTarget.first_name} ${deleteTarget.last_name}`}
-          onConfirm={() => { toast.success('Utilisateur supprimé.'); setDeleteTarget(null); }}
-          onCancel={() => setDeleteTarget(null)}
-        />
+
+      {/* Ban Modal */}
+      {banTarget && (
+        <>
+          <div className="fixed inset-0 bg-[rgba(0,0,0,0.5)] z-40 animate-fade-in" onClick={() => setBanTarget(null)} />
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[400px] bg-rx-surface border border-border rounded-xl z-50 p-6 animate-fade-in">
+            <div className="flex items-center gap-3 mb-4">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${banTarget.status === 'active' ? 'bg-[hsl(0_47%_11%)]' : 'bg-rx-success/10'}`}>
+                {banTarget.status === 'active' ? (
+                  <AlertTriangle size={20} className="text-rx-danger" />
+                ) : (
+                  <CheckCircle size={20} className="text-rx-success" />
+                )}
+              </div>
+              <h3 className="font-display text-lg text-foreground">
+                {banTarget.status === 'active' ? 'Bloquer l\'utilisateur' : 'Débloquer l\'utilisateur'}
+              </h3>
+            </div>
+            <p className="text-[13px] font-ui text-rx-text-secondary mb-6">
+              {banTarget.status === 'active' ? (
+                <>Êtes-vous sûr de vouloir bloquer <strong className="text-foreground">{banTarget.first_name} {banTarget.last_name}</strong> ? L&apos;utilisateur ne pourra plus se connecter.</>
+              ) : (
+                <>Le profil de <strong className="text-foreground">{banTarget.first_name} {banTarget.last_name}</strong> sera de nouveau visible pour tous les utilisateurs.</>
+              )}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setBanTarget(null)}
+                className="flex-1 h-10 border border-border text-rx-text-secondary font-ui font-medium text-[13px] rounded-lg hover:text-foreground hover:bg-rx-elevated transition-colors">
+                Annuler
+              </button>
+              <button
+                onClick={handleBanConfirm}
+                disabled={updateStatus.isPending}
+                className={`flex-1 h-10 font-ui font-medium text-[13px] rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2 ${banTarget.status === 'active'
+                    ? 'bg-rx-danger text-foreground hover:bg-[hsl(0_47%_51%)]'
+                    : 'bg-rx-success text-foreground hover:bg-[hsl(142_76%_36%)]'
+                  }`}>
+                {updateStatus.isPending ? <Loader2 size={14} className="animate-spin mx-auto" /> : (banTarget.status === 'active' ? 'Bloquer' : 'Débloquer')}
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default UsersPage;
+export default UsersPage

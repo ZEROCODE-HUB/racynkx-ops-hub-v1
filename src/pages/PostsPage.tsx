@@ -1,49 +1,85 @@
-import { useState, useMemo, useEffect } from "react";
-import { mockPosts } from "@/data/mockData";
-import type { Post } from "@/data/mockData";
-import PostDetailDrawer from "@/components/drawers/PostDetailDrawer";
-import { DeleteModal } from "@/components/ui/ConfirmModal";
-import TableSkeleton from "@/components/ui/TableSkeleton";
-import EmptyState from "@/components/ui/EmptyState";
-import { Search, Eye, Trash2, Image as ImageIcon, Video, Type } from "lucide-react";
-import { toast } from "sonner";
+import { useState, useEffect, useCallback } from "react"
+import { usePosts } from "@/hooks/queries/usePosts"
+import { useDeletePost } from "@/hooks/mutations/useDeletePost"
+import { Search, Eye, Trash2, Image as ImageIcon, Video, Type, ChevronLeft, ChevronRight, Loader2, AlertTriangle } from "lucide-react"
+import TableSkeleton from "@/components/ui/TableSkeleton"
+import EmptyState from "@/components/ui/EmptyState"
+import PostDetailDrawer from "@/components/drawers/PostDetailDrawer"
+import type { FeedPost } from "@/types/database"
+
+const useDebounce = (value: string, delay: number) => {
+  const [debouncedValue, setDebouncedValue] = useState(value)
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedValue(value), delay)
+    return () => clearTimeout(handler)
+  }, [value, delay])
+  return debouncedValue
+}
+
+const getMediaType = (mediaUrls: string[], mediaItems: any[]): 'photo' | 'video' | 'text' => {
+  if (!mediaUrls || mediaUrls.length === 0) return 'text'
+  const firstItem = mediaItems?.[0]
+  if (firstItem?.type === 'video') return 'video'
+  return 'photo'
+}
+
+const getContentExcerpt = (post: FeedPost): string => {
+  return post.description || post.title || ''
+}
 
 const PostsPage = () => {
-  const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [sortBy, setSortBy] = useState('recent');
-  const [page, setPage] = useState(1);
-  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<Post | null>(null);
-  const [loading, setLoading] = useState(true);
-  const perPage = 25;
+  const [searchInput, setSearchInput] = useState('')
+  const [page, setPage] = useState(1)
+  const [selectedPost, setSelectedPost] = useState<FeedPost | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<FeedPost | null>(null)
+  const perPage = 10
+
+  const debouncedSearch = useDebounce(searchInput, 300)
+
+  const { data, isLoading, isFetching } = usePosts({
+    page,
+    perPage,
+    search: debouncedSearch.length >= 2 ? debouncedSearch : undefined,
+  })
+
+  const deletePost = useDeletePost()
+
+  const posts = data?.data ?? []
+  const totalPages = data?.totalPages ?? 0
+  const total = data?.total ?? 0
 
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 600);
-    return () => clearTimeout(t);
-  }, []);
+    setPage(1)
+  }, [debouncedSearch])
 
-  const filtered = useMemo(() => {
-    let result = mockPosts.filter(p => {
-      if (search.length >= 3 && !p.text.toLowerCase().includes(search.toLowerCase())) return false;
-      if (typeFilter && p.content_type !== typeFilter) return false;
-      if (statusFilter && p.status !== statusFilter) return false;
-      return true;
-    });
-    if (sortBy === 'reported') result = [...result].sort((a, b) => b.reports_count - a.reports_count);
-    if (sortBy === 'liked') result = [...result].sort((a, b) => b.likes_count - a.likes_count);
-    return result;
-  }, [search, typeFilter, statusFilter, sortBy]);
+  const handleDeleteConfirm = () => {
+    if (!deleteTarget) return
+    deletePost.mutate(deleteTarget.id, {
+      onSuccess: () => setDeleteTarget(null)
+    })
+  }
 
-  const totalPages = Math.ceil(filtered.length / perPage);
-  const paged = filtered.slice((page - 1) * perPage, page * perPage);
+  const typeIcon = (type: 'photo' | 'video' | 'text') => {
+    if (type === 'photo') return <ImageIcon size={14} />
+    if (type === 'video') return <Video size={14} />
+    return <Type size={14} />
+  }
 
-  const typeIcon = (t: string) => {
-    if (t === 'photo') return <ImageIcon size={14} />;
-    if (t === 'video') return <Video size={14} />;
-    return <Type size={14} />;
-  };
+  const getPageNumbers = useCallback(() => {
+    const pages: (number | 'ellipsis')[] = []
+    const total = totalPages
+    const current = page
+    if (total <= 7) {
+      for (let i = 1; i <= total; i++) pages.push(i)
+    } else {
+      pages.push(1)
+      if (current > 3) pages.push('ellipsis')
+      for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) pages.push(i)
+      if (current < total - 2) pages.push('ellipsis')
+      pages.push(total)
+    }
+    return pages
+  }, [totalPages, page])
 
   return (
     <div className="p-6 space-y-4 max-w-[1400px]">
@@ -52,76 +88,100 @@ const PostsPage = () => {
       <div className="flex flex-wrap gap-3 items-center sticky top-0 z-10 bg-background py-3 border-b border-border -mx-6 px-6">
         <div className="relative flex-1 min-w-[220px] max-w-[300px]">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-rx-text-muted" />
-          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
-            placeholder="Rechercher par contenu…" className="input-field w-full pl-9 pr-4 py-2.5" />
+          <input
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
+            placeholder="Rechercher par contenu, auteur..."
+            className="input-field w-full pl-9 pr-4 py-2.5"
+          />
         </div>
-        <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1); }}
-          className="input-field px-3 py-2.5">
-          <option value="">Type</option>
-          <option value="photo">Photo</option>
-          <option value="video">Vidéo</option>
-          <option value="text">Texte</option>
-        </select>
-        <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
-          className="input-field px-3 py-2.5">
-          <option value="">Statut</option>
-          <option value="active">Actif</option>
-          <option value="reported">Signalé</option>
-          <option value="deleted">Supprimé</option>
-        </select>
-        <select value={sortBy} onChange={e => setSortBy(e.target.value)}
-          className="input-field px-3 py-2.5">
-          <option value="recent">Plus récent</option>
-          <option value="reported">Plus signalé</option>
-          <option value="liked">Plus liké</option>
-        </select>
       </div>
 
       <div className="card-surface p-0 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-[hsl(0_0%_100%/0.1)]">
-                {['', 'Auteur', 'Type', 'Extrait', 'Date', 'Likes', 'Com.', 'Signalements', 'Statut', ''].map(h => (
-                  <th key={h} className="table-header text-left px-4 py-3">{h}</th>
-                ))}
+              <tr className="border-b border-border">
+                <th className="table-header text-left px-4 py-3">#</th>
+                <th className="table-header text-left px-4 py-3">Auteur</th>
+                <th className="table-header text-left px-4 py-3">Type</th>
+                <th className="table-header text-left px-4 py-3">Extrait</th>
+                <th className="table-header text-left px-4 py-3">Date</th>
+                <th className="table-header text-left px-4 py-3">Likes</th>
+                <th className="table-header text-left px-4 py-3">Com.</th>
+                <th className="table-header text-left px-4 py-3">Statut</th>
+                <th className="table-header text-left px-4 py-3">Actions</th>
               </tr>
             </thead>
-            {loading ? <TableSkeleton cols={10} rows={8} /> : (
+            {isLoading ? (
+              <TableSkeleton cols={9} rows={8} />
+            ) : (
               <tbody>
-                {paged.length === 0 ? (
-                  <tr><td colSpan={10}><EmptyState icon="📸" title="Aucune publication trouvée" subtitle="Essayez de modifier vos filtres." /></td></tr>
-                ) : paged.map(p => (
-                  <tr key={p.id} className={`border-b border-[hsl(0_0%_100%/0.03)] hover:bg-rx-elevated transition-colors ${p.status === 'deleted' ? 'opacity-40' : ''}`}>
-                    <td className="px-4 py-3">
-                      <div className="w-10 h-10 rounded-md bg-rx-elevated flex items-center justify-center text-rx-text-secondary">
-                        {typeIcon(p.content_type)}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 font-ui text-[13px] text-foreground whitespace-nowrap">{p.author_name}</td>
-                    <td className="px-4 py-3"><span className="badge-pill">{p.content_type}</span></td>
-                    <td className="px-4 py-3 font-ui text-[13px] text-rx-text-secondary max-w-[180px] truncate">
-                      <span className={p.status === 'deleted' ? 'line-through' : ''}>{p.text.slice(0, 60)}</span>
-                    </td>
-                    <td className="px-4 py-3 font-mono-data text-xs text-rx-text-secondary">{p.created_at}</td>
-                    <td className="px-4 py-3 font-ui text-[13px] text-rx-text-secondary">{p.likes_count}</td>
-                    <td className="px-4 py-3 font-ui text-[13px] text-rx-text-secondary">{p.comments_count}</td>
-                    <td className="px-4 py-3 font-ui text-[13px]">{p.reports_count > 0 ? <span className="text-rx-warning">⚠ {p.reports_count}</span> : <span className="text-rx-text-muted">—</span>}</td>
-                    <td className="px-4 py-3">
-                      {p.status === 'active' && <span className="badge-pill !text-rx-success">Actif</span>}
-                      {p.status === 'reported' && <span className="badge-pill !text-rx-warning">⚠ Signalé</span>}
-                      {p.status === 'deleted' && <span className="badge-pill !text-rx-danger">Supprimé</span>}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-0.5">
-                        <button onClick={() => setSelectedPost(p)}
-                          className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-rx-elevated text-rx-text-secondary hover:text-foreground transition-colors"><Eye size={14} /></button>
-                        <button onClick={() => setDeleteTarget(p)}
-                          className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-[hsl(0_72%_57%/0.08)] text-rx-danger transition-colors"><Trash2 size={14} /></button>
-                      </div>
+                {posts.length === 0 ? (
+                  <tr>
+                    <td colSpan={9}>
+                      <EmptyState icon="📸" title="Aucune publication trouvée" subtitle="Essayez de modifier vos filtres." />
                     </td>
                   </tr>
-                ))}
+                ) : posts.map((post, index) => {
+                  const contentType = getMediaType(post.media_urls, post.media_items)
+                  const excerpt = getContentExcerpt(post)
+                  const authorName = [post.author_first_name, post.author_last_name].filter(Boolean).join(' ') || 'Anonyme'
+                  return (
+                    <tr key={post.id} className="border-b border-[hsl(0_0%_100%/0.03)] hover:bg-rx-elevated transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="w-10 h-10 rounded-md bg-rx-elevated flex items-center justify-center text-rx-text-secondary">
+                          {typeIcon(contentType)}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          {post.author_profile_photo_url ? (
+                            <img src={post.author_profile_photo_url} alt="" className="w-8 h-8 rounded-full object-cover" />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-rx-elevated flex items-center justify-center text-[11px] font-ui font-medium text-rx-text-secondary">
+                              {(post.author_first_name?.[0] || post.author_last_name?.[0] || '?').toUpperCase()}
+                            </div>
+                          )}
+                          <div>
+                            <div className="font-ui text-[13px] text-foreground whitespace-nowrap">{authorName}</div>
+                            {post.author_role && <div className="font-mono-data text-[10px] text-rx-text-muted">{post.author_role}</div>}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3"><span className="badge-pill">{contentType}</span></td>
+                      <td className="px-4 py-3 font-ui text-[13px] text-rx-text-secondary max-w-[180px] truncate">
+                        {excerpt || '—'}
+                      </td>
+                      <td className="px-4 py-3 font-mono-data text-xs text-rx-text-secondary">
+                        {post.created_at ? new Date(post.created_at).toLocaleDateString('fr-FR') : '—'}
+                      </td>
+                      <td className="px-4 py-3 font-ui text-[13px] text-rx-text-secondary">
+                        {post.likes_count.toLocaleString()}
+                      </td>
+                      <td className="px-4 py-3 font-ui text-[13px] text-rx-text-secondary">
+                        {post.comments_count.toLocaleString()}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="badge-pill">Actif</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-0.5">
+                          <button
+                            onClick={() => setSelectedPost(post)}
+                            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-rx-elevated text-rx-text-secondary hover:text-foreground transition-colors">
+                            <Eye size={14} />
+                          </button>
+                          <button
+                            onClick={() => setDeleteTarget(post)}
+                            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-[hsl(0_72%_57%/0.08)] text-rx-danger transition-colors">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             )}
           </table>
@@ -129,25 +189,79 @@ const PostsPage = () => {
       </div>
 
       <div className="flex items-center justify-between text-[13px] font-ui text-rx-text-secondary">
-        <span>Page {page} sur {totalPages} · {filtered.length} résultats</span>
-        <div className="flex gap-2">
-          <button disabled={page <= 1} onClick={() => setPage(page - 1)}
-            className="px-3 py-1.5 border border-[hsl(0_0%_100%/0.12)] rounded-md text-[13px] disabled:opacity-30 hover:text-foreground transition-colors">Précédent</button>
-          <button disabled={page >= totalPages} onClick={() => setPage(page + 1)}
-            className="px-3 py-1.5 border border-[hsl(0_0%_100%/0.12)] rounded-md text-[13px] disabled:opacity-30 hover:text-foreground transition-colors">Suivant</button>
+        <span>Page {page} sur {totalPages || 1} · {total} résultat{total !== 1 ? 's' : ''}</span>
+        <div className="flex items-center gap-1">
+          {isFetching && !isLoading && <Loader2 size={14} className="animate-spin text-rx-text-muted mr-2" />}
+          <button
+            disabled={page <= 1 || isLoading}
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            className="w-8 h-8 flex items-center justify-center border border-border rounded-md hover:text-foreground hover:bg-rx-elevated transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+            <ChevronLeft size={14} />
+          </button>
+          {getPageNumbers().map((p, i) =>
+            p === 'ellipsis' ? (
+              <span key={`ellipsis-${i}`} className="w-8 h-8 flex items-center justify-center text-rx-text-muted">...</span>
+            ) : (
+              <button
+                key={p}
+                onClick={() => setPage(p)}
+                disabled={isLoading}
+                className={`w-8 h-8 flex items-center justify-center border rounded-md font-medium text-[13px] transition-colors disabled:cursor-not-allowed ${page === p
+                    ? 'border-rx-blue bg-rx-blue/10 text-rx-blue'
+                    : 'border-border text-rx-text-secondary hover:text-foreground hover:bg-rx-elevated'
+                  }`}>
+                {p}
+              </button>
+            )
+          )}
+          <button
+            disabled={page >= totalPages || isLoading}
+            onClick={() => setPage(p => p + 1)}
+            className="w-8 h-8 flex items-center justify-center border border-border rounded-md hover:text-foreground hover:bg-rx-elevated transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+            <ChevronRight size={14} />
+          </button>
         </div>
       </div>
 
-      {selectedPost && <PostDetailDrawer post={selectedPost} onClose={() => setSelectedPost(null)} />}
-      {deleteTarget && (
-        <DeleteModal
-          userName={`Publication de ${deleteTarget.author_name}`}
-          onConfirm={() => { toast.success('Publication supprimée.'); setDeleteTarget(null); }}
-          onCancel={() => setDeleteTarget(null)}
+      {selectedPost && (
+        <PostDetailDrawer
+          post={selectedPost}
+          onClose={() => setSelectedPost(null)}
+          onDeleted={() => setSelectedPost(null)}
         />
       )}
-    </div>
-  );
-};
 
-export default PostsPage;
+      {deleteTarget && (
+        <>
+          <div className="fixed inset-0 bg-[rgba(0,0,0,0.5)] z-40 animate-fade-in" onClick={() => setDeleteTarget(null)} />
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[400px] bg-rx-surface border border-border rounded-xl z-50 p-6 animate-fade-in">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-[hsl(0_47%_11%)] flex items-center justify-center">
+                <AlertTriangle size={20} className="text-rx-danger" />
+              </div>
+              <h3 className="font-display text-lg text-foreground">Supprimer la publication</h3>
+            </div>
+            <p className="text-[13px] font-ui text-rx-text-secondary mb-6">
+              Êtes-vous sûr de vouloir supprimer cette publication ? Cette action est irréversible.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="flex-1 h-10 border border-border text-rx-text-secondary font-ui font-medium text-[13px] rounded-lg hover:text-foreground hover:bg-rx-elevated transition-colors">
+                Annuler
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                disabled={deletePost.isPending}
+                className="flex-1 h-10 bg-rx-danger text-foreground font-ui font-medium text-[13px] rounded-lg hover:bg-[hsl(0_47%_51%)] transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                {deletePost.isPending ? <Loader2 size={14} className="animate-spin mx-auto" /> : 'Supprimer'}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+export default PostsPage
