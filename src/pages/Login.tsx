@@ -1,54 +1,87 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Eye, EyeOff } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { Eye, EyeOff, ShieldX } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/lib/supabase";
 import loginBg from "@/assets/login-bg.jpg";
+
+const AccessDeniedPopup = ({ onClose }: { onClose: () => void }) => (
+  <div className="fixed inset-0 z-[100] flex items-center justify-center">
+    <div className="absolute inset-0 bg-[rgba(0,0,0,0.7)]" onClick={onClose} />
+    <div className="relative bg-rx-surface border border-border rounded-xl w-full max-w-[420px] overflow-hidden animate-fade-in mx-4">
+      <div className="p-8 text-center">
+        <div className="w-14 h-14 rounded-full bg-[hsl(0_72%_57%/0.15)] flex items-center justify-center mx-auto mb-5">
+          <ShieldX size={28} className="text-rx-danger" />
+        </div>
+        <h3 className="font-display text-xl text-foreground mb-3">Accès refusé</h3>
+        <p className="font-ui text-sm text-rx-text-secondary leading-relaxed mb-6">
+          Vous n'avez pas les permissions nécessaires pour accéder à cette section.
+          <br />
+          Votre compte ne dispose pas des droits d'administrateur.
+        </p>
+        <button onClick={onClose}
+          className="w-full h-11 bg-rx-blue hover:bg-[hsl(216_100%_46%)] text-foreground font-display uppercase text-sm tracking-wide rounded-lg transition-colors">
+          Compris
+        </button>
+      </div>
+    </div>
+  </div>
+);
 
 const Login = () => {
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPw, setShowLoginPw] = useState(false);
-  const [regFirst, setRegFirst] = useState('');
-  const [regLast, setRegLast] = useState('');
-  const [regEmail, setRegEmail] = useState('');
-  const [regPassword, setRegPassword] = useState('');
-  const [regConfirm, setRegConfirm] = useState('');
-  const [showRegPw, setShowRegPw] = useState(false);
-  const [showRegConfirm, setShowRegConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [regSuccess, setRegSuccess] = useState(false);
+  const [showDeniedPopup, setShowDeniedPopup] = useState(false);
+  const { signIn } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const handleLogin = (e: React.FormEvent) => {
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('denied') === 'true') {
+      setShowDeniedPopup(true);
+    }
+  }, []);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    setTimeout(() => {
-      if (loginEmail && loginPassword) {
-        localStorage.setItem('racynkx_admin', JSON.stringify({ name: 'Admin RACYNKX', email: loginEmail }));
-        navigate('/dashboard');
-      } else {
-        setError('Veuillez remplir tous les champs.');
-      }
-      setLoading(false);
-    }, 800);
-  };
 
-  const handleRegister = (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    if (regPassword !== regConfirm) {
-      setError('Les mots de passe ne correspondent pas.');
+    const { error: signInError } = await signIn(loginEmail, loginPassword);
+
+    if (signInError) {
+      setError(signInError.message);
       setLoading(false);
       return;
     }
-    setTimeout(() => {
-      setRegSuccess(true);
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setError('Erreur de session');
+      await supabase.auth.signOut();
       setLoading(false);
-      setTimeout(() => { setActiveTab('login'); setRegSuccess(false); }, 2000);
-    }, 800);
+      return;
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('account_role')
+      .eq('user_id', user.id)
+      .single();
+
+    if (!profile || profile.account_role !== 'admin') {
+      await supabase.auth.signOut();
+      setShowDeniedPopup(true);
+      setLoading(false);
+      return;
+    }
+
+    navigate('/dashboard');
   };
 
   const PasswordToggle = ({ show, toggle }: { show: boolean; toggle: () => void }) => (
@@ -65,7 +98,8 @@ const Login = () => {
         <img src={loginBg} alt="" className="absolute inset-0 w-full h-full object-cover" />
         <div className="absolute inset-0 bg-[rgba(10,10,15,0.6)]" />
         <div className="absolute top-8 left-8 z-10">
-          <span className="font-logo text-foreground text-2xl tracking-wide">RACYNKX</span>
+          <img src="/logo_racynkx.webp" alt="Logo" className=" h-8 rounded-sm object-cover" />
+
         </div>
         <div className="relative z-10 text-center px-12">
           <h1 className="font-display text-foreground text-5xl uppercase leading-tight mb-4 tracking-tight">
@@ -92,15 +126,13 @@ const Login = () => {
           {/* Tab switcher */}
           <div className="flex gap-8 mb-8 border-b border-border">
             <button onClick={() => setActiveTab('login')}
-              className={`font-ui font-medium text-[13px] pb-3 tracking-wide transition-colors ${
-                activeTab === 'login' ? 'text-foreground border-b-2 border-rx-blue' : 'text-rx-text-muted hover:text-rx-text-secondary'
-              }`}>
+              className={`font-ui font-medium text-[13px] pb-3 tracking-wide transition-colors ${activeTab === 'login' ? 'text-foreground border-b-2 border-rx-blue' : 'text-rx-text-muted hover:text-rx-text-secondary'
+                }`}>
               Connexion
             </button>
             <button onClick={() => setActiveTab('register')}
-              className={`font-ui font-medium text-[13px] pb-3 tracking-wide transition-colors ${
-                activeTab === 'register' ? 'text-foreground border-b-2 border-rx-blue' : 'text-rx-text-muted hover:text-rx-text-secondary'
-              }`}>
+              className={`font-ui font-medium text-[13px] pb-3 tracking-wide transition-colors ${activeTab === 'register' ? 'text-foreground border-b-2 border-rx-blue' : 'text-rx-text-muted hover:text-rx-text-secondary'
+                }`}>
               Inscription
             </button>
           </div>
@@ -138,61 +170,21 @@ const Login = () => {
               </button>
             </form>
           ) : (
-            <form onSubmit={handleRegister} className="space-y-5">
-              {regSuccess ? (
-                <div className="text-center py-8">
-                  <div className="w-12 h-12 rounded-full bg-[hsl(153_47%_44%/0.15)] flex items-center justify-center mx-auto mb-3">
-                    <span className="text-rx-success text-xl">✓</span>
-                  </div>
-                  <p className="text-rx-success font-ui text-[13px]">Compte créé. Vous pouvez maintenant vous connecter.</p>
-                </div>
-              ) : (
-                <>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[13px] font-ui text-rx-text-secondary mb-1.5">Prénom</label>
-                      <input type="text" value={regFirst} onChange={e => setRegFirst(e.target.value)}
-                        className="input-field w-full px-4 py-3" />
-                    </div>
-                    <div>
-                      <label className="block text-[13px] font-ui text-rx-text-secondary mb-1.5">Nom</label>
-                      <input type="text" value={regLast} onChange={e => setRegLast(e.target.value)}
-                        className="input-field w-full px-4 py-3" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-[13px] font-ui text-rx-text-secondary mb-1.5">Email</label>
-                    <input type="email" value={regEmail} onChange={e => setRegEmail(e.target.value)}
-                      className="input-field w-full px-4 py-3" />
-                  </div>
-                  <div>
-                    <label className="block text-[13px] font-ui text-rx-text-secondary mb-1.5">Mot de passe</label>
-                    <div className="relative">
-                      <input type={showRegPw ? 'text' : 'password'} value={regPassword}
-                        onChange={e => setRegPassword(e.target.value)}
-                        className="input-field w-full px-4 py-3 pr-10" />
-                      <PasswordToggle show={showRegPw} toggle={() => setShowRegPw(!showRegPw)} />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-[13px] font-ui text-rx-text-secondary mb-1.5">Confirmer le mot de passe</label>
-                    <div className="relative">
-                      <input type={showRegConfirm ? 'text' : 'password'} value={regConfirm}
-                        onChange={e => setRegConfirm(e.target.value)}
-                        className="input-field w-full px-4 py-3 pr-10" />
-                      <PasswordToggle show={showRegConfirm} toggle={() => setShowRegConfirm(!showRegConfirm)} />
-                    </div>
-                  </div>
-                  <button type="submit" disabled={loading}
-                    className="w-full h-12 bg-rx-blue hover:bg-[hsl(216_100%_46%)] text-foreground font-display uppercase text-sm tracking-wide rounded-lg transition-colors disabled:opacity-50">
-                    {loading ? 'Création...' : 'Créer le compte admin'}
-                  </button>
-                  <p className="text-center text-xs font-ui text-rx-text-muted">
-                    L'accès est réservé aux administrateurs RACYNKX autorisés.
-                  </p>
-                </>
-              )}
-            </form>
+            <div className="text-center py-12">
+              <div className="w-12 h-12 rounded-full bg-rx-elevated flex items-center justify-center mx-auto mb-4">
+                <span className="text-rx-text-muted text-xl">🔜</span>
+              </div>
+              <h3 className="font-display text-lg text-foreground mb-2">Inscription désactivée</h3>
+              <p className="font-ui text-sm text-rx-text-secondary">
+                Le registre des administrateurs est désactivé pour le moment.
+                <br />
+                Contactez un administrateur système.
+              </p>
+            </div>
+          )}
+
+          {showDeniedPopup && (
+            <AccessDeniedPopup onClose={() => setShowDeniedPopup(false)} />
           )}
         </div>
       </div>
