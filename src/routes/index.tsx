@@ -10,6 +10,7 @@ import Dashboard from '@/pages/Dashboard'
 import UsersPage from '@/pages/UsersPage'
 import CompaniesPage from '@/pages/CompaniesPage'
 import PostsPage from '@/pages/PostsPage'
+import ReportsPage from '@/pages/ReportsPage'
 import NotFound from '@/pages/NotFound'
 
 const queryClient = new QueryClient({
@@ -53,6 +54,10 @@ export const router = createBrowserRouter([
       {
         path: 'posts',
         element: <PostsPage />
+      },
+      {
+        path: 'reports',
+        element: <ReportsPage />
       }
     ]
   },
@@ -67,8 +72,8 @@ export function Router() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Sonner />
-        <RouterProvider 
-          router={router} 
+        <RouterProvider
+          router={router}
           fallbackElement={<FullScreenLoader>Chargement...</FullScreenLoader>}
         />
       </TooltipProvider>
