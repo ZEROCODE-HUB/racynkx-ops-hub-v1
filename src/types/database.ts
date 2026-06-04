@@ -99,6 +99,80 @@ export interface MediaItem {
   order_index: number
 }
 
+export type ReportContentType = 'post' | 'comment' | 'profile' | 'paddock'
+export type ReportReason = 'inappropriate' | 'offensive' | 'other'
+export type ReportStatus = 'pending' | 'under_review' | 'resolved'
+export type ReportDecision = 'deleted' | 'warning' | 'rejected'
+
+export interface ReportProfileRef {
+  user_id: string
+  first_name: string | null
+  last_name: string | null
+  birth_date: string | null
+  gender: string | null
+  nationality: string | null
+  profile_photo_url: string | null
+  banner_photo_url: string | null
+  bio: string | null
+  city: string | null
+  region: string | null
+  country: string | null
+  disciplines: string[] | null
+  start_year: number | null
+  role: string | null
+  followers_count: number
+  badge_name: string | null
+  experience_xp: number | null
+  selected_vcard_theme: string
+  subscription_status: 'free' | 'pro' | 'enterprise'
+  account_role: 'user' | 'admin'
+  status: 'active' | 'disabled'
+  created_at: string
+}
+
+export interface ReportTargetSummary {
+  title: string
+  subtitle: string | null
+  body: string | null
+  author_name: string | null
+  author_profile: ReportProfileRef | null
+  created_at: string
+  target_id: string
+  link_label: string | null
+}
+
+export interface Report {
+  id: string
+  report_number: number
+  reporter_id: string
+  reported_user_id: string
+  content_type: ReportContentType
+  target_id: string
+  reason: ReportReason
+  description: string | null
+  content_snapshot: string | null
+  status: ReportStatus
+  admin_decision: ReportDecision | null
+  admin_note: string | null
+  resolved_by: string | null
+  resolved_at: string | null
+  created_at: string
+}
+
+export interface ReportListItem extends Report {
+  reporter: ReportProfileRef | null
+  reported_user: ReportProfileRef | null
+  resolved_by_profile: ReportProfileRef | null
+  target: ReportTargetSummary | null
+  reporter_name: string
+  reported_user_name: string
+  resolved_by_name: string | null
+  content_label: string
+  reason_label: string
+  status_label: string
+  content_preview: string
+}
+
 export interface Company {
   id: string
   name: string
@@ -113,21 +187,4 @@ export interface Company {
   posts_count: number
   status: 'active' | 'blocked' | 'deleted'
   disciplines: string[]
-}
-
-export interface Report {
-  id: string
-  reporter_id: string
-  reporter_name: string
-  reported_user_id: string
-  reported_user_name: string
-  reported_user_email: string
-  content_type: 'post' | 'comment' | 'profile'
-  content_id: string
-  content_preview: string
-  reason: string
-  free_text: string
-  status: 'pending' | 'resolved_rejected' | 'resolved_deleted' | 'resolved_warned'
-  created_at: string
-  resolved_at: string | null
 }

@@ -3,14 +3,7 @@ import { NavLink, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { BarChart3, Users, Image, Building2, Flag, LogOut, Menu, ChevronLeft } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/queries/useProfile";
-
-const navItems = [
-  { label: 'Tableau de bord', icon: BarChart3, path: '/dashboard' },
-  { label: 'Utilisateurs', icon: Users, path: '/users' },
-  { label: 'Publications', icon: Image, path: '/posts' },
-  { label: 'Entreprises', icon: Building2, path: '/companies' },
-  { label: 'Signalements', icon: Flag, path: '/reports', badge: 8 },
-];
+import { useDashboardStats } from "@/hooks/queries/useDashboardStats";
 
 const AppLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -19,6 +12,15 @@ const AppLayout = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { data: profile } = useProfile(user?.id);
+  const { data: stats } = useDashboardStats();
+
+  const navItems = [
+    { label: 'Tableau de bord', icon: BarChart3, path: '/dashboard' },
+    { label: 'Utilisateurs', icon: Users, path: '/users' },
+    { label: 'Publications', icon: Image, path: '/posts' },
+    { label: 'Entreprises', icon: Building2, path: '/companies' },
+    { label: 'Signalements', icon: Flag, path: '/reports', badge: stats?.pendingReports ?? 0 },
+  ];
 
   const handleLogout = async () => {
     await signOut();

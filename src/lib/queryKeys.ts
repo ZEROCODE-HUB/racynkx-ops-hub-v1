@@ -13,4 +13,8 @@ export const queryKeys = {
   allProfilesLists: ['profiles', 'list'] as const,
   feedPosts: (userId?: string) => ['feedPosts', userId ?? 'anonymous'] as const,
   posts: (params: { page?: number; perPage?: number; search?: string }) => ['posts', params] as const,
+  reports: ['reports'] as const,
+  reportsList: (params: { page?: number; perPage?: number; search?: string; status?: string; contentType?: string; reason?: string }) => ['reports', 'list', params] as const,
+  allReportsLists: ['reports', 'list'] as const,
+  dashboardStats: ['dashboardStats'] as const,
 }
