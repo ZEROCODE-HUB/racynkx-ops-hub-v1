@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { useProfiles } from "@/hooks/queries/useProfiles";
 import { useUpdateProfileStatus } from "@/hooks/mutations/useProfileMutations";
+import { useDeleteUser } from "@/hooks/mutations/useDeleteUser";
 import { Search, Eye, Pencil, Ban, Trash2, ChevronLeft, ChevronRight, Loader2, AlertTriangle, CheckCircle } from "lucide-react";
 import TableSkeleton from "@/components/ui/TableSkeleton";
 import EmptyState from "@/components/ui/EmptyState";
 import UserDetailDrawer from "@/components/drawers/UserDetailDrawer";
+import { DeleteModal } from "@/components/ui/ConfirmModal";
 import type { Profile } from "@/types/database";
 
 const COUNTRIES = [
@@ -41,6 +43,7 @@ const CompaniesPage = () => {
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null)
   const [drawerMode, setDrawerMode] = useState<'view' | 'edit'>('view')
   const [banTarget, setBanTarget] = useState<Profile | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Profile | null>(null)
   const perPage = 10
 
   const debouncedSearch = useDebounce(searchInput, 300)
@@ -55,6 +58,7 @@ const CompaniesPage = () => {
   })
 
   const updateStatus = useUpdateProfileStatus()
+  const deleteUser = useDeleteUser()
 
   const profiles = data?.data ?? []
   const totalPages = data?.totalPages ?? 0
@@ -63,6 +67,13 @@ const CompaniesPage = () => {
   useEffect(() => {
     setPage(1)
   }, [debouncedSearch, countryFilter, statusFilter])
+
+  const handleDeleteConfirm = () => {
+    if (!deleteTarget) return
+    deleteUser.mutate(deleteTarget.user_id, {
+      onSuccess: () => setDeleteTarget(null),
+    })
+  }
 
   const handleBanConfirm = () => {
     if (!banTarget) return
@@ -221,7 +232,9 @@ const CompaniesPage = () => {
                           className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-[hsl(0_47%_11%)] text-rx-text-secondary hover:text-rx-danger transition-colors">
                           <Ban size={14} />
                         </button>
-                        <button className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-[hsl(0_72%_57%/0.08)] text-rx-danger transition-colors">
+                        <button
+                          onClick={() => setDeleteTarget(profile)}
+                          className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-[hsl(0_72%_57%/0.08)] text-rx-danger transition-colors">
                           <Trash2 size={14} />
                         </button>
                       </div>
@@ -277,6 +290,15 @@ const CompaniesPage = () => {
           onSwitchMode={(m) => setDrawerMode(m)}
           onStatusChange={(updated) => setSelectedProfile(updated)}
           onProfileUpdate={(updated) => setSelectedProfile(updated)}
+        />
+      )}
+
+      {deleteTarget && (
+        <DeleteModal
+          userName={`${deleteTarget.first_name ?? ''} ${deleteTarget.last_name ?? ''}`.trim() || 'Sans nom'}
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setDeleteTarget(null)}
+          isPending={deleteUser.isPending}
         />
       )}
 
