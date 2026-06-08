@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AlertTriangle, Trash2 } from "lucide-react";
+import { AlertTriangle, Trash2, Loader2 } from "lucide-react";
 
 interface BlockModalProps {
   userName: string;
@@ -56,9 +56,10 @@ interface DeleteModalProps {
   userName: string;
   onConfirm: () => void;
   onCancel: () => void;
+  isPending?: boolean;
 }
 
-export const DeleteModal = ({ userName, onConfirm, onCancel }: DeleteModalProps) => {
+export const DeleteModal = ({ userName, onConfirm, onCancel, isPending }: DeleteModalProps) => {
   const [confirmName, setConfirmName] = useState('');
   const fullName = userName;
   const isMatch = confirmName.trim().toLowerCase() === fullName.trim().toLowerCase();
@@ -89,13 +90,13 @@ export const DeleteModal = ({ userName, onConfirm, onCancel }: DeleteModalProps)
             </div>
           </div>
           <div className="flex gap-3 p-4 border-t border-border">
-            <button onClick={onCancel}
-              className="flex-1 h-11 border border-border text-rx-text-secondary font-ui font-medium text-sm rounded-lg hover:text-foreground transition-colors">
+            <button onClick={onCancel} disabled={isPending}
+              className="flex-1 h-11 border border-border text-rx-text-secondary font-ui font-medium text-sm rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:text-foreground">
               Annuler
             </button>
-            <button onClick={onConfirm} disabled={!isMatch}
+            <button onClick={onConfirm} disabled={!isMatch || isPending}
               className="flex-1 h-11 font-ui font-medium text-sm rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed bg-rx-danger text-foreground hover:brightness-110">
-              Supprimer définitivement
+              {isPending ? <Loader2 size={16} className="animate-spin mx-auto" /> : 'Supprimer définitivement'}
             </button>
           </div>
         </div>
