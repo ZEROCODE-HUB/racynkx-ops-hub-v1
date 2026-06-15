@@ -3,7 +3,6 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Eye, EyeOff, ShieldX } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
-import loginBg from "@/assets/login-bg.jpg";
 
 const AccessDeniedPopup = ({ onClose }: { onClose: () => void }) => (
   <div className="fixed inset-0 z-[100] flex items-center justify-center">
@@ -29,7 +28,6 @@ const AccessDeniedPopup = ({ onClose }: { onClose: () => void }) => (
 );
 
 const Login = () => {
-  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPw, setShowLoginPw] = useState(false);
@@ -51,6 +49,22 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
+
+    if (!loginEmail.trim()) {
+      setError("L'email est requis");
+      setLoading(false);
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(loginEmail)) {
+      setError("Format d'email invalide");
+      setLoading(false);
+      return;
+    }
+    if (!loginPassword) {
+      setError('Le mot de passe est requis');
+      setLoading(false);
+      return;
+    }
 
     const { error: signInError } = await signIn(loginEmail, loginPassword);
 
@@ -95,11 +109,9 @@ const Login = () => {
     <div className="flex min-h-screen">
       {/* Left Panel */}
       <div className="hidden md:flex w-1/2 relative overflow-hidden items-center justify-center">
-        <img src={loginBg} alt="" className="absolute inset-0 w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-[rgba(10,10,15,0.6)]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black from-50% to-[#1A44FF]" />
         <div className="absolute top-8 left-8 z-10">
-          <img src="/logo_racynkx.webp" alt="Logo" className=" h-8 rounded-sm object-cover" />
-
+          <img src="/logo_racynkx.webp" alt="Logo" className="h-8 rounded-sm object-cover" />
         </div>
         <div className="relative z-10 text-center px-12">
           <h1 className="font-display text-foreground text-5xl uppercase leading-tight mb-4 tracking-tight">
@@ -123,18 +135,10 @@ const Login = () => {
             <span className="font-logo text-foreground text-3xl tracking-wide">RACYNKX</span>
           </div>
 
-          {/* Tab switcher */}
           <div className="flex gap-8 mb-8 border-b border-border">
-            <button onClick={() => setActiveTab('login')}
-              className={`font-ui font-medium text-[13px] pb-3 tracking-wide transition-colors ${activeTab === 'login' ? 'text-foreground border-b-2 border-rx-blue' : 'text-rx-text-muted hover:text-rx-text-secondary'
-                }`}>
+            <span className="font-ui font-medium text-[13px] pb-3 tracking-wide text-foreground border-b-2 border-rx-blue">
               Connexion
-            </button>
-            <button onClick={() => setActiveTab('register')}
-              className={`font-ui font-medium text-[13px] pb-3 tracking-wide transition-colors ${activeTab === 'register' ? 'text-foreground border-b-2 border-rx-blue' : 'text-rx-text-muted hover:text-rx-text-secondary'
-                }`}>
-              Inscription
-            </button>
+            </span>
           </div>
 
           {error && (
@@ -143,45 +147,27 @@ const Login = () => {
             </div>
           )}
 
-          {activeTab === 'login' ? (
-            <form onSubmit={handleLogin} className="space-y-5">
-              <div>
-                <label className="block text-[13px] font-ui text-rx-text-secondary mb-1.5">Email</label>
-                <input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)}
-                  className="input-field w-full px-4 py-3" placeholder="admin@racynkx.com" />
-              </div>
-              <div>
-                <label className="block text-[13px] font-ui text-rx-text-secondary mb-1.5">Mot de passe</label>
-                <div className="relative">
-                  <input type={showLoginPw ? 'text' : 'password'} value={loginPassword}
-                    onChange={e => setLoginPassword(e.target.value)}
-                    className="input-field w-full px-4 py-3 pr-10" />
-                  <PasswordToggle show={showLoginPw} toggle={() => setShowLoginPw(!showLoginPw)} />
-                </div>
-              </div>
-              <div className="text-right">
-                <button type="button" className="text-[13px] font-ui text-rx-text-secondary hover:text-foreground transition-colors">
-                  Mot de passe oublié? →
-                </button>
-              </div>
-              <button type="submit" disabled={loading}
-                className="w-full h-12 bg-rx-blue hover:bg-[hsl(216_100%_46%)] text-foreground font-display uppercase text-sm tracking-wide rounded-lg transition-colors disabled:opacity-50">
-                {loading ? 'Connexion...' : 'Se connecter'}
-              </button>
-            </form>
-          ) : (
-            <div className="text-center py-12">
-              <div className="w-12 h-12 rounded-full bg-rx-elevated flex items-center justify-center mx-auto mb-4">
-                <span className="text-rx-text-muted text-xl">🔜</span>
-              </div>
-              <h3 className="font-display text-lg text-foreground mb-2">Inscription désactivée</h3>
-              <p className="font-ui text-sm text-rx-text-secondary">
-                Le registre des administrateurs est désactivé pour le moment.
-                <br />
-                Contactez un administrateur système.
-              </p>
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div>
+              <label className="block text-[13px] font-ui text-rx-text-secondary mb-1.5">Email</label>
+              <input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)}
+                className="input-field w-full px-4 py-3" placeholder="admin@racynkx.com" />
             </div>
-          )}
+            <div>
+              <label className="block text-[13px] font-ui text-rx-text-secondary mb-1.5">Mot de passe</label>
+              <div className="relative">
+                <input type={showLoginPw ? 'text' : 'password'} value={loginPassword}
+                  onChange={e => setLoginPassword(e.target.value)}
+                  className="input-field w-full px-4 py-3 pr-10" />
+                <PasswordToggle show={showLoginPw} toggle={() => setShowLoginPw(!showLoginPw)} />
+              </div>
+            </div>
+
+            <button type="submit" disabled={loading}
+              className="w-full h-12 bg-rx-blue hover:bg-[hsl(216_100%_46%)] text-foreground font-display uppercase text-sm tracking-wide rounded-lg transition-colors disabled:opacity-50">
+              {loading ? 'Connexion...' : 'Se connecter'}
+            </button>
+          </form>
 
           {showDeniedPopup && (
             <AccessDeniedPopup onClose={() => setShowDeniedPopup(false)} />

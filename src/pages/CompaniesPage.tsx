@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/lib/supabase";
 import { useProfiles } from "@/hooks/queries/useProfiles";
 import { useUpdateProfileStatus } from "@/hooks/mutations/useProfileMutations";
 import { useDeleteUser } from "@/hooks/mutations/useDeleteUser";
@@ -57,12 +58,36 @@ const CompaniesPage = () => {
     status: statusFilter || undefined,
   })
 
-  const updateStatus = useUpdateProfileStatus()
-  const deleteUser = useDeleteUser()
-
   const profiles = data?.data ?? []
   const totalPages = data?.totalPages ?? 0
   const total = data?.total ?? 0
+
+  const [postsCountMap, setPostsCountMap] = useState<Record<string, number>>({})
+
+  useEffect(() => {
+    if (profiles.length === 0) {
+      setPostsCountMap({})
+      return
+    }
+
+    const userIds = profiles.map(p => p.user_id)
+
+    supabase
+      .from('posts')
+      .select('user_id')
+      .in('user_id', userIds)
+      .then(({ data: posts, error }) => {
+        if (error) return
+        const counts: Record<string, number> = {}
+        posts?.forEach(post => {
+          counts[post.user_id] = (counts[post.user_id] || 0) + 1
+        })
+        setPostsCountMap(counts)
+      })
+  }, [profiles])
+
+  const updateStatus = useUpdateProfileStatus()
+  const deleteUser = useDeleteUser()
 
   useEffect(() => {
     setPage(1)
@@ -101,7 +126,7 @@ const CompaniesPage = () => {
   }, [totalPages, page])
 
   return (
-    <div className="p-6 space-y-4 max-w-[1400px]">
+    <div className="p-6 space-y-4 ">
       <h1 className="font-display text-foreground text-[28px] uppercase tracking-tight">Entreprises</h1>
 
       <div className="flex flex-wrap gap-3 items-center sticky top-0 z-10 bg-background py-3 border-b border-border -mx-6 px-6">
@@ -206,7 +231,9 @@ const CompaniesPage = () => {
                     <td className="px-4 py-3 font-ui text-[13px] text-rx-text-secondary">
                       {profile.followers_count?.toLocaleString() ?? 0}
                     </td>
-                    <td className="px-4 py-3 font-ui text-[13px] text-rx-text-secondary">0</td>
+                    <td className="px-4 py-3 font-ui text-[13px] text-rx-text-secondary">
+                      {postsCountMap[profile.user_id] ?? 0}
+                    </td>
                     <td className="px-4 py-3">
                       <button
                         onClick={() => updateStatus.mutate({ userId: profile.user_id, status: profile.status === 'active' ? 'disabled' : 'active' })}

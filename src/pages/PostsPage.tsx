@@ -82,7 +82,7 @@ const PostsPage = () => {
   }, [totalPages, page])
 
   return (
-    <div className="p-6 space-y-4 max-w-[1400px]">
+    <div className="p-6 space-y-4 ">
       <h1 className="font-display text-foreground text-[28px] uppercase tracking-tight">Publications</h1>
 
       <div className="flex flex-wrap gap-3 items-center sticky top-0 z-10 bg-background py-3 border-b border-border -mx-6 px-6">
