@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useProfiles } from "@/hooks/queries/useProfiles";
+import { supabase } from "@/lib/supabase";
 import { useUpdateProfileStatus } from "@/hooks/mutations/useProfileMutations";
 import { useDeleteUser } from "@/hooks/mutations/useDeleteUser";
 import { Search, Eye, Pencil, Ban, Trash2, ChevronLeft, ChevronRight, Loader2, AlertTriangle, CheckCircle } from "lucide-react";
@@ -8,6 +10,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import UserDetailDrawer from "@/components/drawers/UserDetailDrawer";
 import { DeleteModal } from "@/components/ui/ConfirmModal";
 import type { Profile } from "@/types/database";
+import insignia from "@/assets/insignia.png";
 
 const COUNTRIES = [
   { value: 'france', label: 'France', code: 'FR' },
@@ -21,9 +24,9 @@ const getCountryFlagUrl = (country: string | null) => {
 }
 
 const ROLES = [
-  'Pilote', 'Copilote', 'Coach', 'Ingenieur', 'Technicien', 'Team',
-  'Enterprise', 'Médias Photo', 'Médias Vidéo', 'Médias Presse',
-  'Personnel Organisation', 'Manager', 'Personnel Médical'
+  'Pilote', 'Copilote', 'Simracer', 'Fan', 'Coach', 'Mécanicien',
+  'Ingenieur', 'Technicien', 'Manager', 'Médical', 'Média',
+  'Actualités', 'Autre'
 ]
 
 const STATUS_OPTIONS = [
@@ -49,6 +52,7 @@ const UsersPage = () => {
   const [roleFilter, setRoleFilter] = useState('')
   const [countryFilter, setCountryFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [genderFilter, setGenderFilter] = useState('')
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null)
   const [drawerMode, setDrawerMode] = useState<'view' | 'edit'>('view')
   const [banTarget, setBanTarget] = useState<Profile | null>(null)
@@ -64,18 +68,33 @@ const UsersPage = () => {
     role: roleFilter || undefined,
     country: countryFilter || undefined,
     status: statusFilter || undefined,
+    gender: genderFilter || undefined,
   })
 
   const updateStatus = useUpdateProfileStatus()
   const deleteUser = useDeleteUser()
 
+  const { data: totalCountData } = useQuery({
+    queryKey: ['profiles', 'total-count'],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+      return count ?? 0
+    },
+    staleTime: 1000 * 60 * 5,
+  })
+
+  const totalUsers = totalCountData ?? 0
   const profiles = data?.data ?? []
   const totalPages = data?.totalPages ?? 0
   const total = data?.total ?? 0
 
+  const hasFilters = debouncedSearch.length >= 2 || !!roleFilter || !!countryFilter || !!statusFilter || !!genderFilter
+
   useEffect(() => {
     setPage(1)
-  }, [debouncedSearch, roleFilter, countryFilter, statusFilter])
+  }, [debouncedSearch, roleFilter, countryFilter, statusFilter, genderFilter])
 
   const handleStatusToggle = (profile: Profile) => {
     const newStatus: 'active' | 'disabled' = profile.status === 'active' ? 'disabled' : 'active'
@@ -119,7 +138,7 @@ const UsersPage = () => {
   }, [totalPages, page])
 
   return (
-    <div className="p-6 space-y-4 max-w-[1400px]">
+    <div className="p-6 space-y-4 ">
       <h1 className="font-display text-foreground text-[28px] uppercase tracking-tight">Utilisateurs</h1>
 
       {/* Toolbar */}
@@ -156,6 +175,24 @@ const UsersPage = () => {
           <option value="">Tous les pays</option>
           {COUNTRIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
         </select>
+        <select
+          value={genderFilter}
+          onChange={e => setGenderFilter(e.target.value)}
+          className="input-field px-3 py-2.5"
+        >
+          <option value="">Tous les genres</option>
+          <option value="homme">Homme</option>
+          <option value="femme">Femme</option>
+        </select>
+        <div className="ml-auto flex items-center gap-2 bg-rx-elevated border border-border rounded-lg px-4 py-2.5">
+          <span className="font-ui text-[13px] text-rx-text-secondary">Total</span>
+          <span className="font-mono-data text-sm font-semibold text-foreground">{total}</span>
+          {hasFilters && (
+            <span className="font-mono-data text-xs text-rx-text-muted">
+              ({totalUsers > 0 ? Math.round((total / totalUsers) * 100) : 0}%)
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Table */}
@@ -168,6 +205,7 @@ const UsersPage = () => {
                 <th className="table-header text-left px-4 py-3">Avatar</th>
                 <th className="table-header text-left px-4 py-3">Nom</th>
                 <th className="table-header text-left px-4 py-3">Rôle</th>
+                <th className="table-header text-left px-4 py-3">Genre</th>
                 <th className="table-header text-left px-4 py-3">Disciplines</th>
                 <th className="table-header text-left px-4 py-3">Pays</th>
                 <th className="table-header text-left px-4 py-3">Inscrit le</th>
@@ -177,12 +215,12 @@ const UsersPage = () => {
               </tr>
             </thead>
             {isLoading ? (
-              <TableSkeleton cols={10} rows={10} />
+              <TableSkeleton cols={11} rows={10} />
             ) : (
               <tbody>
                 {profiles.length === 0 ? (
                   <tr>
-                    <td colSpan={10}>
+                    <td colSpan={11}>
                       <EmptyState icon="👤" title="Aucun utilisateur trouvé" subtitle="Essayez de modifier vos filtres." />
                     </td>
                   </tr>
@@ -205,10 +243,15 @@ const UsersPage = () => {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="font-ui font-semibold text-[13px] text-foreground">
-                        {profile.first_name && profile.last_name
-                          ? `${profile.first_name} ${profile.last_name}`
-                          : profile.first_name || profile.last_name || 'Sans nom'}
+                      <div className="flex items-center gap-2">
+                        <div className="font-ui font-semibold text-[13px] text-foreground">
+                          {profile.first_name && profile.last_name
+                            ? `${profile.first_name} ${profile.last_name}`
+                            : profile.first_name || profile.last_name || 'Sans nom'}
+                        </div>
+                        {profile.subscription_status === 'active' && (
+                          <img src={insignia} alt="Abonné" className="w-5 h-5 object-contain" />
+                        )}
                       </div>
                       <div className="font-mono-data text-[11px] text-rx-text-muted truncate max-w-[150px]">
                         {profile.user_id.slice(0, 8)}...
@@ -216,6 +259,11 @@ const UsersPage = () => {
                     </td>
                     <td className="px-4 py-3">
                       <span className="badge-pill">{profile.role || '—'}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`font-ui text-[13px] font-medium capitalize ${profile.gender === 'homme' ? 'text-rx-blue' : profile.gender === 'femme' ? 'text-pink-400' : 'text-rx-text-muted'}`}>
+                        {profile.gender === 'homme' ? 'Homme' : profile.gender === 'femme' ? 'Femme' : '—'}
+                      </span>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1 flex-wrap">
