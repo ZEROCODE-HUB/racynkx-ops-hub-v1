@@ -16,10 +16,11 @@ export interface GetProfilesOptions {
   role?: string
   country?: string
   status?: 'active' | 'disabled'
+  gender?: string
 }
 
 export async function getProfiles(options: GetProfilesOptions = {}): Promise<PaginatedProfiles> {
-  const { page = 1, perPage = 25, search, role, country, status } = options
+  const { page = 1, perPage = 25, search, role, country, status, gender } = options
   const from = (page - 1) * perPage
   const to = from + perPage - 1
 
@@ -42,6 +43,10 @@ export async function getProfiles(options: GetProfilesOptions = {}): Promise<Pag
 
   if (status) {
     query = query.eq('status', status)
+  }
+
+  if (gender) {
+    query = query.eq('gender', gender)
   }
 
   const { data, error, count } = await query

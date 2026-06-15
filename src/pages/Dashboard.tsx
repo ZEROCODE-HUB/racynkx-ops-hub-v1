@@ -61,7 +61,7 @@ const Dashboard = () => {
   const isLoading = profilesLoading || statsLoading;
 
   return (
-    <div className="p-6 space-y-6 max-w-[1400px]">
+    <div className="p-6 space-y-6 ">
       <div className="flex items-center justify-between">
         <h1 className="font-display text-foreground text-[28px] uppercase tracking-tight">Tableau de bord</h1>
         <button onClick={handleRefresh}

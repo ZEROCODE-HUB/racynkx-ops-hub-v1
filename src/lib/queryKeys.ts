@@ -9,7 +9,7 @@
 export const queryKeys = {
   profile: (id: string) => ['profile', id] as const,
   profiles: ['profiles'] as const,
-  profilesList: (params: { page?: number; perPage?: number; search?: string; role?: string; country?: string; status?: string }) => ['profiles', 'list', params] as const,
+  profilesList: (params: { page?: number; perPage?: number; search?: string; role?: string; country?: string; status?: string; gender?: string }) => ['profiles', 'list', params] as const,
   allProfilesLists: ['profiles', 'list'] as const,
   feedPosts: (userId?: string) => ['feedPosts', userId ?? 'anonymous'] as const,
   posts: (params: { page?: number; perPage?: number; search?: string }) => ['posts', params] as const,

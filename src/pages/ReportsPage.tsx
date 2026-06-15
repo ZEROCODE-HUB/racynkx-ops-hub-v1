@@ -106,7 +106,7 @@ const ReportsPage = () => {
     : 'La file est vide pour le moment.'
 
   return (
-    <div className="p-6 space-y-4 max-w-[1400px]">
+    <div className="p-6 space-y-4 ">
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
           <h1 className="font-display text-foreground text-[28px] uppercase tracking-tight">Signalements</h1>
