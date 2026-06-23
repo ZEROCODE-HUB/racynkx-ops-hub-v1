@@ -26,7 +26,7 @@ const getCountryFlagUrl = (country: string | null) => {
 const ROLES = [
   'Pilote', 'Copilote', 'Simracer', 'Fan', 'Coach', 'Mécanicien',
   'Ingenieur', 'Technicien', 'Manager', 'Médical', 'Média',
-  'Actualités', 'Autre'
+  'Actualités', 'Autre','Team', 'Enterprise'
 ]
 
 const STATUS_OPTIONS = [
@@ -209,7 +209,7 @@ const UsersPage = () => {
                 <th className="table-header text-left px-4 py-3">Disciplines</th>
                 <th className="table-header text-left px-4 py-3">Pays</th>
                 <th className="table-header text-left px-4 py-3">Inscrit le</th>
-                <th className="table-header text-left px-4 py-3">XP</th>
+                <th className="table-header text-left px-4 py-3">RX</th>
                 <th className="table-header text-left px-4 py-3">Statut</th>
                 <th className="table-header text-left px-4 py-3">Actions</th>
               </tr>

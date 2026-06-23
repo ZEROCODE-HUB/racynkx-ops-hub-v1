@@ -109,17 +109,13 @@ const Login = () => {
     <div className="flex min-h-screen">
       {/* Left Panel */}
       <div className="hidden md:flex w-1/2 relative overflow-hidden items-center justify-center">
-        <div className="absolute inset-0 bg-gradient-to-b from-black from-50% to-[#1A44FF]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black from-20% to-[#1A44FF]" />
         <div className="absolute top-8 left-8 z-10">
-          <img src="/logo_racynkx.webp" alt="Logo" className="h-8 rounded-sm object-cover" />
+          {/* <img src="/logo_racynkx.webp" alt="Logo" className="h-8 rounded-sm object-cover" /> */}
         </div>
         <div className="relative z-10 text-center px-12">
-          <h1 className="font-display text-foreground text-5xl uppercase leading-tight mb-4 tracking-tight">
-            Where Racing<br />Meets You
-          </h1>
-          <p className="font-ui text-rx-text-secondary text-base">
-            La plateforme sociale du motorsport
-          </p>
+          <img src="/logo_racynkx.webp" alt="Logo" className="h-24 rounded-sm object-cover" />
+
         </div>
         <div className="absolute bottom-8 left-8 z-10">
           <span className="font-mono-data text-rx-text-muted text-xs">
