@@ -112,10 +112,7 @@ const ReportsPage = () => {
           <h1 className="font-display text-foreground text-[28px] uppercase tracking-tight">Signalements</h1>
           <p className="font-ui text-sm text-rx-text-secondary mt-1">{total.toLocaleString()} signalement{total > 1 ? 's' : ''} charg{total > 1 ? 'és' : 'é'} depuis la base.</p>
         </div>
-        <div className="flex items-center gap-2 text-xs font-ui text-rx-text-muted">
-          <Filter size={14} />
-          Filtrage temps réel sur public.reports
-        </div>
+ 
       </div>
 
       <div className="flex gap-6 border-b border-border overflow-x-auto">
