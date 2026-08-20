@@ -26,6 +26,7 @@ export interface Profile {
   followers_count: number
   badge_name: string | null
   experience_xp: number | null
+  xp_total?: number | null
   selected_vcard_theme: string
   subscription_status: 'free' | 'pro' | 'enterprise'
   active_entitlement_id: string | null

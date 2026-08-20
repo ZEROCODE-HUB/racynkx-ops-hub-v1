@@ -25,7 +25,7 @@ export async function getProfiles(options: GetProfilesOptions = {}): Promise<Pag
   const to = from + perPage - 1
 
   let query = supabase
-    .from('profiles')
+    .from('v_admin_profiles')
     .select('*', { count: 'exact' })
     .range(from, to)
 
