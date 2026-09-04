@@ -4,11 +4,13 @@ import { useProfiles } from "@/hooks/queries/useProfiles";
 import { supabase } from "@/lib/supabase";
 import { useUpdateProfileStatus } from "@/hooks/mutations/useProfileMutations";
 import { useDeleteUser } from "@/hooks/mutations/useDeleteUser";
-import { Search, Eye, Pencil, Ban, Trash2, ChevronLeft, ChevronRight, Loader2, AlertTriangle, CheckCircle } from "lucide-react";
+import { Search, Eye, Pencil, Ban, Trash2, ChevronLeft, ChevronRight, Loader2, AlertTriangle, CheckCircle, Copy } from "lucide-react";
 import TableSkeleton from "@/components/ui/TableSkeleton";
 import EmptyState from "@/components/ui/EmptyState";
 import UserDetailDrawer from "@/components/drawers/UserDetailDrawer";
 import { DeleteModal } from "@/components/ui/ConfirmModal";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { toast } from "@/hooks/use-toast";
 import type { Profile } from "@/types/database";
 import insignia from "@/assets/insignia.png";
 
@@ -307,8 +309,25 @@ const UsersPage = () => {
                         {profile.status === 'active' ? 'Actif' : 'Inactif'}
                       </button>
                     </td>
-                    <td className="px-4 py-3 font-mono-data text-xs text-rx-text-secondary truncate max-w-[150px]">
-                      {profile.email || '—'}
+                    <td className="px-4 py-3">
+                      <Tooltip delayDuration={0}>
+                        <TooltipTrigger asChild>
+                          <span className="font-mono-data text-xs text-rx-text-secondary truncate max-w-[150px] block cursor-default">
+                            {profile.email || '—'}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent className="flex items-center gap-2 max-w-xs">
+                          <span className="font-mono-data text-xs break-all">{profile.email || '—'}</span>
+                          {profile.email && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(profile.email || ''); toast({ title: "Copié!", description: "Email copié au presse-papiers" }); }}
+                              className="p-1 hover:bg-rx-elevated rounded shrink-0"
+                            >
+                              <Copy size={14} />
+                            </button>
+                          )}
+                        </TooltipContent>
+                      </Tooltip>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-0.5">

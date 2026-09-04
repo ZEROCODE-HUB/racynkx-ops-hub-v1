@@ -3,11 +3,13 @@ import { supabase } from "@/lib/supabase";
 import { useProfiles } from "@/hooks/queries/useProfiles";
 import { useUpdateProfileStatus } from "@/hooks/mutations/useProfileMutations";
 import { useDeleteUser } from "@/hooks/mutations/useDeleteUser";
-import { Search, Eye, Pencil, Ban, Trash2, ChevronLeft, ChevronRight, Loader2, AlertTriangle, CheckCircle } from "lucide-react";
+import { Search, Eye, Pencil, Ban, Trash2, ChevronLeft, ChevronRight, Loader2, AlertTriangle, CheckCircle, Copy } from "lucide-react";
 import TableSkeleton from "@/components/ui/TableSkeleton";
 import EmptyState from "@/components/ui/EmptyState";
 import UserDetailDrawer from "@/components/drawers/UserDetailDrawer";
 import { DeleteModal } from "@/components/ui/ConfirmModal";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { toast } from "@/hooks/use-toast";
 import type { Profile } from "@/types/database";
 
 const COUNTRIES = [
@@ -169,17 +171,18 @@ const CompaniesPage = () => {
                 <th className="table-header text-left px-4 py-3">Inscrit le</th>
                 <th className="table-header text-left px-4 py-3">Abonnés</th>
                 <th className="table-header text-left px-4 py-3">Publications</th>
+                <th className="table-header text-left px-4 py-3">Email</th>
                 <th className="table-header text-left px-4 py-3">Statut</th>
                 <th className="table-header text-left px-4 py-3">Actions</th>
               </tr>
             </thead>
             {isLoading ? (
-              <TableSkeleton cols={10} rows={10} />
+              <TableSkeleton cols={11} rows={10} />
             ) : (
               <tbody>
                 {profiles.length === 0 ? (
                   <tr>
-                    <td colSpan={10}>
+                    <td colSpan={11}>
                       <EmptyState icon="🏢" title="Aucune entreprise trouvée" subtitle="Essayez de modifier vos filtres." />
                     </td>
                   </tr>
@@ -233,6 +236,26 @@ const CompaniesPage = () => {
                     </td>
                     <td className="px-4 py-3 font-ui text-[13px] text-rx-text-secondary">
                       {postsCountMap[profile.user_id] ?? 0}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Tooltip delayDuration={0}>
+                        <TooltipTrigger asChild>
+                          <span className="font-mono-data text-xs text-rx-text-secondary truncate max-w-[150px] block cursor-default">
+                            {profile.email || '—'}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent className="flex items-center gap-2 max-w-xs">
+                          <span className="font-mono-data text-xs break-all">{profile.email || '—'}</span>
+                          {profile.email && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(profile.email || ''); toast({ title: "Copié!", description: "Email copié au presse-papiers" }); }}
+                              className="p-1 hover:bg-rx-elevated rounded shrink-0"
+                            >
+                              <Copy size={14} />
+                            </button>
+                          )}
+                        </TooltipContent>
+                      </Tooltip>
                     </td>
                     <td className="px-4 py-3">
                       <button
