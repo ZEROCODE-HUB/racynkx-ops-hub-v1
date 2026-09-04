@@ -69,7 +69,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('status', 'active'),
     supabase.from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', oneMonthAgo.toISOString()),
     supabase.from('posts').select('*', { count: 'exact', head: true }),
-    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'Enterprise'),
+    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'Entreprise'),
     supabase.from('reports').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
   ])
 

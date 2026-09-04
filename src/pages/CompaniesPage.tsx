@@ -53,7 +53,7 @@ const CompaniesPage = () => {
     page,
     perPage,
     search: debouncedSearch.length >= 2 ? debouncedSearch : undefined,
-    role: 'Enterprise',
+    role: 'Entreprise',
     country: countryFilter || undefined,
     status: statusFilter || undefined,
   })

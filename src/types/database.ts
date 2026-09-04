@@ -36,6 +36,7 @@ export interface Profile {
   country_flag?: string
   xp_score?: number
   disciplines_list?: string[]
+  email?: string | null
 }
 
 export interface User {

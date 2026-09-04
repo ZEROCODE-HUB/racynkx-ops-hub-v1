@@ -26,7 +26,7 @@ const getCountryFlagUrl = (country: string | null) => {
 const ROLES = [
   'Pilote', 'Copilote', 'Simracer', 'Fan', 'Coach', 'Mécanicien',
   'Ingenieur', 'Technicien', 'Manager', 'Médical', 'Média',
-  'Actualités', 'Autre','Team', 'Enterprise'
+  'Actualités', 'Autre','Team', 'Entreprise'
 ]
 
 const STATUS_OPTIONS = [
@@ -211,16 +211,17 @@ const UsersPage = () => {
                 <th className="table-header text-left px-4 py-3">Inscrit le</th>
                 <th className="table-header text-left px-4 py-3">RX</th>
                 <th className="table-header text-left px-4 py-3">Statut</th>
+                <th className="table-header text-left px-4 py-3">Email</th>
                 <th className="table-header text-left px-4 py-3">Actions</th>
               </tr>
             </thead>
             {isLoading ? (
-              <TableSkeleton cols={11} rows={10} />
+              <TableSkeleton cols={12} rows={10} />
             ) : (
               <tbody>
                 {profiles.length === 0 ? (
                   <tr>
-                    <td colSpan={11}>
+                    <td colSpan={12}>
                       <EmptyState icon="👤" title="Aucun utilisateur trouvé" subtitle="Essayez de modifier vos filtres." />
                     </td>
                   </tr>
@@ -305,6 +306,9 @@ const UsersPage = () => {
                         <span className={`w-1.5 h-1.5 rounded-full ${profile.status === 'active' ? 'bg-rx-success' : 'bg-rx-danger'}`} />
                         {profile.status === 'active' ? 'Actif' : 'Inactif'}
                       </button>
+                    </td>
+                    <td className="px-4 py-3 font-mono-data text-xs text-rx-text-secondary truncate max-w-[150px]">
+                      {profile.email || '—'}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-0.5">
