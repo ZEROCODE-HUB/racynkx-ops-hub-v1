@@ -1,7 +1,9 @@
 import type { Profile } from "@/types/database";
-import { X, RotateCcw, AlertTriangle, CheckCircle } from "lucide-react";
+import { X, RotateCcw, AlertTriangle, CheckCircle, Copy } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useUpdateProfile, useUpdateProfileStatus } from "@/hooks/mutations/useProfileMutations";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { toast } from "@/hooks/use-toast";
 
 interface Props {
   profile: Profile;
@@ -177,6 +179,27 @@ const UserDetailDrawer = ({ profile, mode, onClose, onSwitchMode, onStatusChange
                   <div>
                     <span className="text-rx-text-secondary block text-[11px] mb-0.5">Abonnements</span>
                     <div className="text-foreground">{profile.account_role || '—'}</div>
+                  </div>
+                  <div>
+                    <span className="text-rx-text-secondary block text-[11px] mb-0.5">Email</span>
+                    <Tooltip delayDuration={0}>
+                      <TooltipTrigger asChild>
+                        <div className="font-mono-data text-[11px] text-rx-text-muted truncate max-w-[180px] cursor-default">
+                          {profile.email || '—'}
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent className="flex items-center gap-2 max-w-xs">
+                        <span className="font-mono-data text-xs break-all">{profile.email || '—'}</span>
+                        {profile.email && (
+                          <button
+                            onClick={() => { navigator.clipboard.writeText(profile.email || ''); toast({ title: "Copié!", description: "Email copié au presse-papiers" }); }}
+                            className="p-1 hover:bg-rx-elevated rounded shrink-0"
+                          >
+                            <Copy size={14} />
+                          </button>
+                        )}
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                 </div>
               </div>
